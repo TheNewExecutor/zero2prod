@@ -1,10 +1,26 @@
 [package]
 name = "zero2prod"
 version = "0.1.0"
-edition = "2024"
+authors = ["Jonathan Sarker <thenewexecutor@gmail.com>"]
+edition = "2021"
+
+[lib]
+# Community conventions specify a library using the `name` field where default is
+# package.name, which is what we desire
+path = "src/lib.rs"
 
 [dependencies]
 axum = "0.8.9" # Replace with the latest version
 tokio = { version = "1.0", features = ["full"] }
 tower = "0.5.0"
 serde = { version = "1.0", features = ["derive"] }
+
+# Double brackets signifies array in TOML, implying we can have multiple binaries
+# but only one library
+[[bin]]
+path = "src/main.rs"
+name = "zero2prod"
+
+# Dev dependencies are used only when running tests or example, not in final app bin
+[dev-dependencies]
+reqwest = { version = "0.11", features = ["json"] }
