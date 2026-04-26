@@ -1,13 +1,14 @@
 //! lib.rs
 
 use axum::{
-    routing::get,
+    Form,
+    routing::{get, post},
     Router,
     http::StatusCode,
     response::IntoResponse,
     Json,
 };
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 
 pub fn app() -> Router {
     Router::new()
@@ -16,6 +17,7 @@ pub fn app() -> Router {
     .route("/health", get(health_check))
     .route("/complex_health", get(complex_health_check))
     .route("/trait_health", get(trait_health_check))
+    .route("/subscriptions", post(subscribe))
 }
 
 
@@ -46,4 +48,15 @@ async fn complex_health_check() -> impl IntoResponse {
     } else {
         (StatusCode::SERVICE_UNAVAILABLE, "Service Unavailable").into_response()
     }
+}
+
+#[derive(Deserialize)]
+struct FormData {
+    email: String,
+    name: String,
+}
+
+async fn subscribe(Form(payload): Form<FormData>) -> impl IntoResponse {
+    println!("Registering new subscriber {}, with email {}.", payload.name, payload.email);
+    (StatusCode::OK, "OK").into_response()
 }
