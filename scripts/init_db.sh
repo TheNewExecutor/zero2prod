@@ -26,17 +26,18 @@ DB_NAME="${POSTGRES_DB:=newsletter}"
 # Check if a custom port has been set, otherwise default to '5432'
 DB_PORT="${POSTGRES_PORT:=5432}"
 
-# Launch postgres using Docker
-docker run \
-  --name "postgres_$(date '+%s')" \
-  -e POSTGRES_USER="${DB_USER}" \
-  -e POSTGRES_PASSWORD="${DB_PASSWORD}" \
-  -e POSTGRES_DB="${DB_NAME}" \
-  -p "${DB_PORT}:5432" \
-  -d \
-  postgres \
-  postgres -N 1000
-
+# Launch postgres using Docker if not already running
+if [[ -z "${SKIP_DOCKER}" ]]
+then
+  docker run \
+      --name "postgres_$(date '+%s')" \
+      -e POSTGRES_USER="${DB_USER}" \
+      -e POSTGRES_PASSWORD="${DB_PASSWORD}" \
+      -e POSTGRES_DB="${DB_NAME}" \
+      -p "${DB_PORT}:5432" \
+      -d postgres \
+      postgres -N 1000
+fi
 # Keep pinging Postgres until it's ready to accept commands
 until psql -h "localhost" -U "${DB_USER}" -p "${DB_PORT}" -d "postgres" -c '\q'; do
     >&2 echo "Postgres is still unavailable - sleeping"
@@ -45,5 +46,8 @@ done
 # Set up the environment variable for the database URL as a proper postgres URL string
 export DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}
 
-# Use cli command to create the database
+# Use cli commands to create the database and run migrations
 sqlx database create
+sqlx migrate run
+
+>&2 echo "Postgres has been migrated, ready to go!"
