@@ -10,6 +10,7 @@ edition = "2021"
 path = "src/lib.rs"
 
 [dependencies]
+config = "0.11"
 axum = "0.8.9" # Replace with the latest version
 tokio = { version = "1.0", features = ["full"] }
 tower = "0.5.0"
@@ -24,3 +25,16 @@ name = "zero2prod"
 # Dev dependencies are used only when running tests or example, not in final app bin
 [dev-dependencies]
 reqwest = { version = "0.11", features = ["json"] }
+
+# Using table-like toml (dotted keys) to avoid long lines
+[dependencies.sqlx]
+version = "0.6.2"
+default-features = false
+features = [
+    "runtime-tokio-rustls",
+    "macros",
+    "postgres",
+    "uuid",
+    "chrono",
+    "migrate",
+]
