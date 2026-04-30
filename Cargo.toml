@@ -28,7 +28,7 @@ reqwest = { version = "0.11", features = ["json"] }
 
 # Using table-like toml (dotted keys) to avoid long lines
 [dependencies.sqlx]
-version = "0.6.2"
+version = "0.8.6"
 default-features = false
 features = [
     "runtime-tokio-rustls",
