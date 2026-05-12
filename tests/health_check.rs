@@ -1,5 +1,5 @@
 //! tests/health_check.rs
-use sqlx::{PgConnection, Connection};
+use sqlx::{PgPool, Connection};
 use zero2prod::configuration::get_configuration;
 use std::net::TcpListener;
 use serde::Deserialize;
@@ -85,8 +85,9 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
     let configuration = get_configuration().expect("Failed to read configuration.");
     let connection_string = configuration.database.connection_string();
     // The  `Connection` trait must be in scope for us to invoke
-    // `PgConnection::connect` - it is not an inherent method of the struct!
-    let connection = PgConnection::connect(&connection_string)
+    // `PgPool::connect` - it is not an inherent method of the struct!
+    // The connection must be marked mutable to perform queries
+    let mut connection = PgPool::connect(&connection_string)
         .await
         .expect("Failed to connect to Postgres.");
     let client = reqwest::Client::new();
@@ -102,6 +103,14 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
         .expect("Failed to execute request.");
     // Assert
     assert_eq!(200, response.status().as_u16());
+
+    let saved = sqlx::query!("SELECT email, name FROM subscriptions",)
+        .fetch_one(&mut connection)
+        .await
+        .expect("Failed to fetch saved subscription.");
+    
+        assert_eq!(saved.email, "ursula_le_guin@gmail.com");
+        assert_eq!(saved.name, "le guin");
 }
 
 
