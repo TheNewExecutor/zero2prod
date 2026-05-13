@@ -1,10 +1,10 @@
 //! tests/health_check.rs
-use sqlx::{PgPool, Connection};
+use sqlx::PgPool;
 use zero2prod::configuration::get_configuration;
 use std::net::TcpListener;
 use serde::Deserialize;
 use zero2prod::startup::app;
-
+use zero2prod::state::AppState;
 // Define a test struct that matches the HealthResponse struct
 #[derive(Debug, Deserialize, PartialEq)]
 struct TestHealthResponse {
@@ -16,12 +16,12 @@ struct TestHealthResponse {
 #[tokio::test]
 async fn health_check_works() {
     // Arrange
-    let address = spawn_app();
+    let app = spawn_app().await;
     // We need to bring in `request` to perform http requests against our application
     let client = reqwest::Client::new();
     // Act
     let response = client
-        .get(&format!("http://{}/health_check", address))
+        .get(&format!("http://{}/health_check", app.address))
         .send()
         .await
         .expect("Failed to execute request.");
@@ -35,12 +35,12 @@ async fn health_check_works() {
 #[tokio::test]
 async fn trait_health_check_works() {
     // Arrange
-    let address = spawn_app();
+    let app = spawn_app().await;
     // We need to bring in `request` to perform http requests against our application
     let client = reqwest::Client::new();
     // Act
     let response = client
-        .get(&format!("http://{}/trait_health", address))
+        .get(&format!("http://{}/trait_health", app.address))
         .send()
         .await
         .expect("Failed to execute request.");
@@ -54,12 +54,12 @@ async fn trait_health_check_works() {
 #[tokio::test]
 async fn complex_health_check_works() {
     // Arrange
-    let address = spawn_app();
+    let app = spawn_app().await;
     // We need to bring in `request` to perform http requests against our application
     let client = reqwest::Client::new();
     // Act
     let response = client
-        .get(&format!("http://{}/complex_health", address))
+        .get(&format!("http://{}/complex_health", app.address))
         .send()
         .await
         .expect("Failed to execute request.");
@@ -81,21 +81,13 @@ async fn complex_health_check_works() {
 #[tokio::test]
 async fn subscribe_returns_a_200_for_valid_form_data() {
     // Arrange
-    let app_address = spawn_app();
-    let configuration = get_configuration().expect("Failed to read configuration.");
-    let connection_string = configuration.database.connection_string();
-    // The  `Connection` trait must be in scope for us to invoke
-    // `PgPool::connect` - it is not an inherent method of the struct!
-    // The connection must be marked mutable to perform queries
-    let mut connection = PgPool::connect(&connection_string)
-        .await
-        .expect("Failed to connect to Postgres.");
+    let app = spawn_app().await;
     let client = reqwest::Client::new();
 
     // Act
     let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
     let response = client
-        .post(&format!("http://{}/subscriptions", &app_address))
+        .post(&format!("http://{}/subscriptions", app.address))
         .header("Content-Type", "application/x-www-form-urlencoded")
         .body(body)
         .send()
@@ -105,7 +97,7 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
     assert_eq!(200, response.status().as_u16());
 
     let saved = sqlx::query!("SELECT email, name FROM subscriptions",)
-        .fetch_one(&mut connection)
+        .fetch_one(&app.db_pool)
         .await
         .expect("Failed to fetch saved subscription.");
     
@@ -117,7 +109,7 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
 #[tokio::test]
 async fn subscribe_returns_a_422_when_data_is_missing() {
     // Arrange
-    let app_address = spawn_app();
+    let app = spawn_app().await;
     let client = reqwest::Client::new();
 
     let test_cases = vec![
@@ -129,7 +121,7 @@ async fn subscribe_returns_a_422_when_data_is_missing() {
     for (invalid_body, error_message) in test_cases {
         // Act
         let response = client
-            .post(&format!("http://{}/subscriptions", app_address))
+            .post(&format!("http://{}/subscriptions", app.address))
             .header("Content-Type", "application/x-www-form-urlencoded")
             .body(invalid_body)
             .send()
@@ -145,21 +137,36 @@ async fn subscribe_returns_a_422_when_data_is_missing() {
         );
     }
 }
+
+// Test struct to hold essential setup info to run tests
+pub struct TestApp {
+    pub address: String,
+    pub db_pool: PgPool,
+}
 // Helper function to launch our application in the background 
-fn spawn_app() -> String {
+async fn spawn_app() -> TestApp {
     let std_listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
     let port = std_listener.local_addr().unwrap().port();
     std_listener
         .set_nonblocking(true)
         .expect("Failed to set listener to non-blocking mode");
+    let configuration = get_configuration().expect("Failed to read configuration.");
     let listener =
         tokio::net::TcpListener::from_std(std_listener).expect("Failed to convert listener");
+    let connection_pool = PgPool::connect(&configuration.database.connection_string())
+    .await
+    .expect("Failed to connect to Postgres.");
 
-    let server_router = app();
+    let state = AppState { db_pool: connection_pool.clone() };
+    let server_router = app(state);
 
     tokio::spawn(async move {
         axum::serve(listener, server_router).await.unwrap();
     });
 
-    format!("127.0.0.1:{}", port)
+    let address = format!("127.0.0.1:{}", port);
+    TestApp { 
+        address, 
+        db_pool: connection_pool,
+     }
 }

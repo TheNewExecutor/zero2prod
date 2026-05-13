@@ -1,10 +1,7 @@
-// src/state.rs
+//! src/state.rs This module contains the shared state between routes
 use sqlx::PgPool;
-use std::sync:: Arc;
 
+#[derive(Clone)]
 pub struct AppState {
     pub db_pool: PgPool,
 }
-
-// A type alias for shorthand in handlers
-pub type SharedState = Arc<AppState>;
