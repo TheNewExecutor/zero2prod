@@ -1,10 +1,11 @@
 //! tests/health_check.rs
-use sqlx::PgPool;
-use zero2prod::configuration::get_configuration;
+use sqlx::{Connection, Executor, PgConnection, PgPool};
+use zero2prod::configuration::{get_configuration, DatabaseSettings};
 use std::net::TcpListener;
 use serde::Deserialize;
 use zero2prod::startup::app;
 use zero2prod::state::AppState;
+use uuid::Uuid;
 // Define a test struct that matches the HealthResponse struct
 #[derive(Debug, Deserialize, PartialEq)]
 struct TestHealthResponse {
@@ -150,12 +151,11 @@ async fn spawn_app() -> TestApp {
     std_listener
         .set_nonblocking(true)
         .expect("Failed to set listener to non-blocking mode");
-    let configuration = get_configuration().expect("Failed to read configuration.");
+    let mut configuration = get_configuration().expect("Failed to read configuration.");
+    configuration.database.database_name = Uuid::new_v4().to_string();
     let listener =
         tokio::net::TcpListener::from_std(std_listener).expect("Failed to convert listener");
-    let connection_pool = PgPool::connect(&configuration.database.connection_string())
-    .await
-    .expect("Failed to connect to Postgres.");
+    let connection_pool = configure_database(&configuration.database).await;
 
     let state = AppState { db_pool: connection_pool.clone() };
     let server_router = app(state);
@@ -169,4 +169,30 @@ async fn spawn_app() -> TestApp {
         address, 
         db_pool: connection_pool,
      }
+}
+
+
+pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
+    // Create database
+    let mut connection = PgConnection::connect(&config.connection_string_without_db())
+    .await
+    .expect("Failed to connect to Postgres.");
+
+    connection
+    .execute(format!(r#"CREATE DATABASE "{}";"#, config.database_name).as_str())
+    .await
+    .expect("Failed to create database.");
+
+
+    // Migrate database
+    let connection_pool = PgPool::connect(&config.connection_string())
+    .await
+    .expect("Failed to connect to Postgres.");
+
+    sqlx::migrate!("./migrations")
+    .run(&connection_pool)
+    .await
+    .expect("Failed to migrate database.");
+
+    connection_pool
 }
