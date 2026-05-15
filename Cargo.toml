@@ -17,6 +17,9 @@ tower = "0.5.0"
 serde = { version = "1.0", features = ["derive"] }
 uuid = { version = "1.0", features = ["v4"] }
 chrono = "0.4.44"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tower-http = { version = "0.6", features = ["trace"] }
 
 # Double brackets signifies array in TOML, implying we can have multiple binaries
 # but only one library

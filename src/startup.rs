@@ -5,6 +5,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use tower_http::trace::TraceLayer;
 
 pub fn app(state: AppState) -> Router {
     Router::new()
@@ -15,4 +16,5 @@ pub fn app(state: AppState) -> Router {
         .route("/trait_health", get(trait_health_check))
         .route("/subscriptions", post(subscribe))
         .with_state(state) // delegate type specifics to state.rs module
+        .layer(TraceLayer::new_for_http())
 }
