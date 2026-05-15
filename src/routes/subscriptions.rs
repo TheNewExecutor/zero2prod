@@ -1,14 +1,9 @@
 //! src/routes/subscriptions.rs
-use axum::{
-    http::StatusCode,
-    response::IntoResponse,
-    Form,
-    extract::State,
-};
-use serde::Deserialize;
-use chrono::Utc;
-use uuid::Uuid;
 use crate::state::AppState;
+use axum::{extract::State, http::StatusCode, response::IntoResponse, Form};
+use chrono::Utc;
+use serde::Deserialize;
+use uuid::Uuid;
 
 #[derive(Deserialize)]
 pub struct FormData {
@@ -18,8 +13,12 @@ pub struct FormData {
 
 pub async fn subscribe(
     State(state): State<AppState>,
-    Form(payload): Form<FormData>) -> impl IntoResponse {
-    println!("Registering new subscriber {}, with email {}.", payload.name, payload.email);
+    Form(payload): Form<FormData>,
+) -> impl IntoResponse {
+    println!(
+        "Registering new subscriber {}, with email {}.",
+        payload.name, payload.email
+    );
     let result = sqlx::query!(
         r#"
         INSERT INTO subscriptions (id, email, name, subscribed_at)
@@ -34,6 +33,10 @@ pub async fn subscribe(
     .await;
     match result {
         Ok(_) => (StatusCode::OK, "OK").into_response(),
-        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Failed to insert subscription into the database").into_response(),
+        Err(_) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to insert subscription into the database",
+        )
+            .into_response(),
     }
 }
