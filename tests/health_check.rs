@@ -2,10 +2,19 @@
 use serde::Deserialize;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use std::net::TcpListener;
+use std::sync::LazyLock;
 use uuid::Uuid;
 use zero2prod::configuration::{get_configuration, DatabaseSettings};
 use zero2prod::startup::app;
 use zero2prod::state::AppState;
+use zero2prod::telemetry::{get_subscriber, init_subscriber};
+
+// Initialize tracing global subscriber for tests
+static TRACING: LazyLock<()> = LazyLock::new(|| {
+    let subscriber = get_subscriber("test".into(), "debug".into());
+    init_subscriber(subscriber);
+});
+
 // Define a test struct that matches the HealthResponse struct
 #[derive(Debug, Deserialize, PartialEq)]
 struct TestHealthResponse {
@@ -150,13 +159,15 @@ pub struct TestApp {
 }
 // Helper function to launch our application in the background
 async fn spawn_app() -> TestApp {
+    LazyLock::force(&TRACING);
+    let mut configuration = get_configuration().expect("Failed to read configuration.");
+    configuration.database.database_name = Uuid::new_v4().to_string();
     let std_listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
     let port = std_listener.local_addr().unwrap().port();
     std_listener
         .set_nonblocking(true)
         .expect("Failed to set listener to non-blocking mode");
-    let mut configuration = get_configuration().expect("Failed to read configuration.");
-    configuration.database.database_name = Uuid::new_v4().to_string();
+
     let listener =
         tokio::net::TcpListener::from_std(std_listener).expect("Failed to convert listener");
     let connection_pool = configure_database(&configuration.database).await;
