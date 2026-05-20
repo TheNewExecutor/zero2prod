@@ -3,7 +3,7 @@ use crate::state::AppState;
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Form};
 use chrono::Utc;
 use serde::Deserialize;
-use tracing::instrument;
+use tracing::{instrument, Instrument};
 use uuid::Uuid;
 
 #[derive(Deserialize)]
@@ -25,9 +25,7 @@ pub async fn subscribe(
     State(state): State<AppState>,
     Form(payload): Form<FormData>,
 ) -> impl IntoResponse {
-    let query_span = tracing::info_span!(
-        "Saving new subscriber details in the database"
-    );
+    let query_span = tracing::info_span!("Saving new subscriber details in the database");
     let result = sqlx::query!(
         r#"
         INSERT INTO subscriptions (id, email, name, subscribed_at)
@@ -41,7 +39,7 @@ pub async fn subscribe(
     .execute(&state.db_pool)
     .instrument(query_span)
     .await;
-    
+
     match result {
         Ok(_) => {
             tracing::info!("New subscriber details have been saved.");
