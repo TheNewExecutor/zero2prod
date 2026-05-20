@@ -12,8 +12,9 @@ async fn main() {
     // Panic if we can't read configuration
     let configuration = get_configuration().expect("Failed to read configuration.");
     // Set up logging subscriber (filtering, formatting and global init)
-    let subscriber = get_subscriber("zero2prod".into(), configuration.log_level);
+    let subscriber = get_subscriber("zero2prod".into(), configuration.log_level, std::io::stdout);
     init_subscriber(subscriber);
+
     let connection_pool = PgPool::connect(&configuration.database.connection_string())
         .await
         .expect("Failed to connect to Postgres.");
