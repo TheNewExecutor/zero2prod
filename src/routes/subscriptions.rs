@@ -3,6 +3,7 @@ use crate::state::AppState;
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Form};
 use chrono::Utc;
 use serde::Deserialize;
+use tracing::instrument;
 use uuid::Uuid;
 
 #[derive(Deserialize)]
@@ -11,6 +12,14 @@ pub struct FormData {
     name: String,
 }
 
+#[instrument(
+    name = "subscribe_handler",
+    skip_all,
+    fields(
+        user.name = %payload.name,
+        user.email = %payload.email,
+    )
+)]
 pub async fn subscribe(
     State(state): State<AppState>,
     Form(payload): Form<FormData>,
@@ -32,11 +41,17 @@ pub async fn subscribe(
     .execute(&state.db_pool)
     .await;
     match result {
-        Ok(_) => (StatusCode::OK, "OK").into_response(),
-        Err(_) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "Failed to insert subscription into the database",
-        )
-            .into_response(),
+        Ok(_) => {
+            tracing::info!("New subscriber details have been saved.");
+            (StatusCode::OK, "OK").into_response()
+        }
+        Err(_) => {
+            tracing::error!("Failed to execute query.");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to insert subscription into the database",
+            )
+                .into_response()
+        }
     }
 }
