@@ -56,3 +56,4 @@ src/
   - looked up significance of `tower-http`, `tracing` and `tracing_subscriber`
   - added log levels to configuration setup
   - `tracinging_subscriber` controls log output specifics
+  - good secrets management includes identifying secrets, wrapping them and exposing them only when necessary
