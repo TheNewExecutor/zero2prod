@@ -1,6 +1,5 @@
 //! src/main.rs
 use axum;
-use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
 use tokio::net::TcpListener;
 use zero2prod::configuration::get_configuration;
@@ -17,9 +16,10 @@ async fn main() {
     init_subscriber(subscriber);
 
     let connection_pool = PgPoolOptions::new()
-        .connect_timeout(std::time::Duraction::from_secs(2))
+        .acquire_timeout(std::time::Duration::from_secs(2))
         .connect_lazy(&configuration.database.connection_string())
-        .expect("Failed to connect to Postgres.");
+        .expect("Failed to create Postgres connection pool.");
+
     let state = AppState {
         db_pool: connection_pool,
     };
