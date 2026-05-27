@@ -1,6 +1,7 @@
 //! src/main.rs
 use axum;
 use sqlx::PgPool;
+use sqlx::postgres::PgPoolOptions;
 use tokio::net::TcpListener;
 use zero2prod::configuration::get_configuration;
 use zero2prod::startup::app;
@@ -15,14 +16,18 @@ async fn main() {
     let subscriber = get_subscriber("zero2prod".into(), configuration.log_level, std::io::stdout);
     init_subscriber(subscriber);
 
-    let connection_pool = PgPool::connect(&configuration.database.connection_string())
-        .await
+    let connection_pool = PgPoolOptions::new()
+        .connect_timeout(std::time::Duraction::from_secs(2))
+        .connect_lazy(&configuration.database.connection_string())
         .expect("Failed to connect to Postgres.");
     let state = AppState {
         db_pool: connection_pool,
     };
     // We have removed the hard-coded port number and it now comes from our settings
-    let address = format!("127.0.0.1:{}", configuration.application_port);
+    let address = format!(
+        "{}:{}",
+        configuration.application.host, configuration.application.port
+    );
     let listener = TcpListener::bind(address).await.unwrap();
     axum::serve(listener, app(state)).await.unwrap();
 }
