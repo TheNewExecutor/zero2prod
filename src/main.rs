@@ -1,5 +1,4 @@
 //! src/main.rs
-use axum;
 use sqlx::postgres::PgPoolOptions;
 use tokio::net::TcpListener;
 use zero2prod::configuration::get_configuration;
