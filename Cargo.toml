@@ -23,6 +23,7 @@ tracing-log = "0.2"
 tracing-bunyan-formatter = "0.3"
 tower-http = { version = "0.6", features = ["trace"] }
 secrecy = { version = "0.10.3", features = ["serde"] }
+serde-aux = "4.7"
 
 # Double brackets signifies array in TOML, implying we can have multiple binaries
 # but only one library

@@ -1,6 +1,6 @@
 //! tests/health_check.rs
 use serde::Deserialize;
-use sqlx::{Connection, Executor, PgConnection, PgPool};
+use sqlx::{Connection, PgConnection, PgPool};
 use std::net::TcpListener;
 use std::sync::LazyLock;
 use uuid::Uuid;
@@ -197,17 +197,19 @@ async fn spawn_app() -> TestApp {
 
 pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
     // Create database
-    let mut connection = PgConnection::connect(&config.connection_string_without_db())
+    let mut connection = PgConnection::connect_with(&config.without_db())
         .await
         .expect("Failed to connect to Postgres.");
 
-    connection
-        .execute(format!(r#"CREATE DATABASE "{}";"#, config.database_name).as_str())
+    let create_database_query = format!(r#"CREATE DATABASE "{}";"#, config.database_name);
+
+    sqlx::query(sqlx::AssertSqlSafe(create_database_query))
+        .execute(&mut connection)
         .await
         .expect("Failed to create database.");
 
     // Migrate database
-    let connection_pool = PgPool::connect(&config.connection_string())
+    let connection_pool = PgPool::connect_with(config.with_db())
         .await
         .expect("Failed to connect to Postgres.");
 
