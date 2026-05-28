@@ -37,10 +37,10 @@ services:
         scope: RUN_TIME
         value: ${newsletter.DATABASE_NAME}
 databases:
+  - name: newsletter
   # PG = Postgres
-  - engine: PG
+    engine: PG
     # Database name
-    name: newsletter
     num_nodes: 1
     size: db-s-dev-database
     # Postgres version - using the latest here
