@@ -1,0 +1,2 @@
+doctl apps create --spec spec.yaml
+doctl databases firewalls append $DB_ID --rule ip_addr:$IP_ADDRESS
